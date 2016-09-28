@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 setup(name='Mroylib',
     version='0.2',
     description='some lib',
-    url='https://github.com/Qingluan/Q.git',
+    url='https://git.oschina.net/dark.h/Mroylib.git',
     author='Qing luan',
     author_email='darkhackdevil@gmail.com',
     license='MIT',
