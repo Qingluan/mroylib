@@ -113,7 +113,7 @@ class SqlmapApi:
         'charencode'
     ]
 
-    def __init__(self, id=None, timeout=20, connection="127.0.0.1:8775", thread_num=2, **connect_options):
+    def __init__(self, id=None, timeout=20, connection="127.0.0.1:8775", log=False, thread_num=2, **connect_options):
         
         self.exe = Exe(thread_num)
         self.target = 'http://{connection}'.format(connection=connection)
@@ -124,6 +124,7 @@ class SqlmapApi:
         self.start_time = None
         self.terminated = False
         self.connect_options = connect_options
+        self.log = log
         self.timeout = timeout
         if self.id is None:
             self.create_task()
@@ -137,7 +138,8 @@ class SqlmapApi:
             db.close()
 
         elif t == 'data':
-            info(v)
+            if self.log:
+                info(v)
             db = SqlEngine(**self.connect_options)
             if v['data']:
                 
@@ -150,7 +152,8 @@ class SqlmapApi:
                     }
                     db.update("Task", upadte_set, task_id=self.id)
                 else:
-                    ok(v['data'])
+                    if self.log:
+                        ok(v['data'])
                     self.injectable = True
             else:
                 upadte_set = {
@@ -160,28 +163,38 @@ class SqlmapApi:
                 }
                 db.update("Task", upadte_set, task_id=self.id)
             db.close()
+            # when scan stoped , to delete task;
+            self.task_cmd("delete")
 
         elif t == "status":
-            info(v[u'status'])
+            if self.log:
+                info(v[u'status'])
             if v[u'status'] == 'terminated':
                 self.result()
 
         elif t == 'start':
-            info(v['success'])
+            if self.log:
+                info(v['success'])
         elif t == 'set':
-            ok('\ninit options')
+            if self.log:
+                ok('\ninit options')
         elif t == 'kill':
-            fail(v)
+            if self.log:
+                fail(v)
         elif t == 'stop':
-            wrn(v)
+            if self.log:
+                wrn(v)
         elif t == 'list':
             for k in v['options']:
-                ok(k, v['options'][k])
+                if self.log:
+                    ok(k, v['options'][k])
         elif t == 'task':
-            info(v)
+            if self.log:
+                info(v)
         elif t == 'log':
             for msg in v['log']:
-                info(msg)
+                if self.log:
+                    info(msg)
 
     def handle(self, tag, cmd, **kargs):
         return tag, to(urljoin(self.target, cmd), **kargs).json()
@@ -253,6 +266,9 @@ class SqlmapApi:
             method='post',
             headers={'Content-Type': 'application/json'})
 
+        self.exe.timmer(5, self.result)
+        self.exe.timmer(10, self.result)
+        self.exe.timmer(15, self.result)
         self.exe.timmer(self.timeout, self.result)
 
     def status(self):
