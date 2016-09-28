@@ -1,0 +1,9 @@
+{	
+	"server":"0.0.0.0",
+	"local_port":1080,
+	"password":"dark1",
+	"workers":10,
+	"server_port":3009,
+	"method":"aes-256-cfb",
+	"timeout":"600"
+}
