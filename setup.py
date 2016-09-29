@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 
 setup(name='Mroylib',
-    version='1.0',
+    version='1.1.1',
     description='some lib',
     url='https://git.oschina.net/dark.h/Mroylib.git',
     author='Qing luan',
@@ -12,7 +12,7 @@ setup(name='Mroylib',
     license='MIT',
     zip_safe=False,
     packages=find_packages(),
-    install_requires=['Qtornado','redis','pymysql','fabric3','requests','lxml','bs4','termcolor','bson','simplejson'],
+    install_requires=['Qtornado','redis', 'psycopg2','pymysql','fabric3','requests','lxml','bs4','termcolor','bson','simplejson'],
 
 )
 

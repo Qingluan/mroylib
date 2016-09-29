@@ -16,8 +16,9 @@ class SqlEngine:
         CreatedTime TimeStamp NOT NULL DEFAULT CURRENT_TIMESTAMP, 
         {extends} );"""
 
-    def __init__(self,database=None, type='sqlite' , **connect_options):
+    def __init__(self, database=None, type='sqlite' , **connect_options):
         self.Type = type
+        self.database = database
         engine = None
         if not database and type == 'sqlite':
             type = 'mysql'
@@ -93,7 +94,7 @@ class SqlEngine:
             elif isinstance(v, int):
                 columns[k] = '%s %s' % (k, 'INTEGER NOT NULL DEFAULT %d' % v)
             elif isinstance(v, str):
-                columns[k] = '%s %s' % (k, 'VARCHAR(255) NOT NULL DEFAULT "%s"' % v)
+                columns[k] = '%s %s' % (k, 'VARCHAR(255) NOT NULL DEFAULT \'%s\'' % v)
             
             elif hasattr(v, '_table'):
                 columns[k] = '%s %s' % (k, 'INTEGER, FOREIGN KEY (%s) REFERENCES %s(ID)' % (k, v.__name__))
@@ -127,9 +128,9 @@ class SqlEngine:
         if isinstance(v, int):
             return '{}={}'.format(k, v)
         elif isinstance(v, str):
-            return '{}="{}"'.format(k, v)
+            return '{}=\'{}\''.format(k, v)
         elif isinstance(v, datetime.datetime):
-            return '{}="{}"'.format(k, v)
+            return '{}=\'{}\''.format(k, v)
         elif hasattr(v, '_table'):
             if hasattr(v, "ID"):
                 return str(v.ID)
@@ -152,6 +153,8 @@ class SqlEngine:
             for row in self.cu.fetchall():
                 yield row
         except Exception as e:
+            if hasattr(self.con, 'rollback'):
+                self.con.rollback()
             print(cmd)
             raise e
 
@@ -179,6 +182,16 @@ class SqlEngine:
                     _tr = sql.rfind(')')
                     return tuple((tuple(i.split()) for i in sql[_pr:_tr].split(",")))
             return False
+        elif self.Type == 'postgresql':
+            res = tuple(self.select("information_schema.columns",
+                'column_name',
+                'data_type',
+                'column_default',
+                table_name=table))
+            if res:
+                return res
+            else:
+                return False
         else:
             try:
                 self.run_cmd("desc " + table)
@@ -189,6 +202,15 @@ class SqlEngine:
                 else:
                     raise e
 
+    def table_list(self):
+        if self.Type == "postgresql":
+            return tuple(self.select('information_schema.tables', 'table_name', table_schema='public'))
+        elif self.Type == 'sqlite':
+            return tuple(self.select('sqlite_master', 'name'))
+        elif self.Type == 'mysql':
+            return tuple(self.select('information_schema.tables', 'table_name', table_schema=self.database))
+        else:
+            raise Exception("not supported type")
 
     def _sqls(self, i):
         if isinstance(i, int):
@@ -309,7 +331,7 @@ class SqlEngine:
             elif isinstance(v, int):
                 dtype = 'INTEGER NOT NULL DEFAULT %d' % v
             elif isinstance(v, str):
-                dtype = 'VARCHAR(255) NOT NULL DEFAULT "%s"' % v
+                dtype = 'VARCHAR(255) NOT NULL DEFAULT \'%s\'' % v
             elif hasattr(v, '_table'):
                 dtype = 'INTEGER, FOREIGN KEY (%s) REFERENCES %s(ID)' % (k, v.__name__)
             elif v is None:
@@ -374,6 +396,8 @@ class SqlEngine:
             else:
                 self.cu.execute(cmd)
         except Exception as e:
+            if hasattr(self.con, 'rollback'):
+                self.con.rollback()
             print(e)
             print(values)
             print(cmd)
@@ -385,6 +409,8 @@ class SqlEngine:
         try:
             self.cu.execute(cmd)
         except Exception as e:
+            if hasattr(self.con, 'rollback'):
+                self.con.rollback()
             print(e)
             print(cmd)
             raise e
