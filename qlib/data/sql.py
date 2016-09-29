@@ -33,6 +33,7 @@ class SqlEngine:
                 import pymysql
                 engine = pymysql
             elif type == 'postgresql':
+                self.DEFAULT_TABLE = self.DEFAULT_TABLE.replace('ID INTEGER PRIMARY KEY NOT NULL AUTO_INCREMENT', 'ID SERIAL PRIMARY KEY')
                 import psycopg2
                 engine = psycopg2
             else:
