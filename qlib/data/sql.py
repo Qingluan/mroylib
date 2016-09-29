@@ -47,26 +47,13 @@ class SqlEngine:
             self.con = engine.connect(database=database, **connect_options)
         self.cu = self.con.cursor()
 
-    def got_datetime(timeobj):
+    def datetime(timeobj):
         if isinstance(timeobj, datetime.datetime):
             return timeobj
         elif isinstance(timeobj, str):
             ss = time.strptime(timeobj, '%Y-%m-%d %H:%M:%S')
             return datetime.datetime.fromtimestamp(time.mktime(ss))
 
-    def run_cmd(self, cmd, *values):
-        try:
-            if values:
-                self.cu.execute(cmd, values)
-            else:
-                self.cu.execute(cmd)
-        except Exception as e:
-            print(e)
-            print(values)
-            print(cmd)
-            raise e
-
-        return self.con.commit()
 
     def create_table(self, table, *extends_columns):
         columns = ',\n\t'.join(extends_columns)
@@ -97,9 +84,9 @@ class SqlEngine:
             names.append(k)
             v = kargs[k]
             if v is int:
-                columns[k] = '%s %s' % (k, 'INTEGER ')
+                columns[k] = '%s %s' % (k, 'INTEGER')
             elif v is str:
-                columns[k] = '%s %s' % (k, 'TEXT ')
+                columns[k] = '%s %s' % (k, 'TEXT')
             elif v is time:
                 columns[k] = '%s %s' % (k, 'TimeStamp DEFAULT CURRENT_TIMESTAMP')
             elif isinstance(v, int):
@@ -108,7 +95,7 @@ class SqlEngine:
                 columns[k] = '%s %s' % (k, 'VARCHAR(255) NOT NULL DEFAULT "%s"' % v)
             
             elif hasattr(v, '_table'):
-                columns[k] = '%s %s' % (k, 'INTEGER, FOREIGN KEY (%s) REFERENCES %s(ID) ' % (k, v.__name__))
+                columns[k] = '%s %s' % (k, 'INTEGER, FOREIGN KEY (%s) REFERENCES %s(ID)' % (k, v.__name__))
             else:
                 raise TypeError("not supported Sql Type %s" % str(v))
 
@@ -150,16 +137,57 @@ class SqlEngine:
             print(k, v)
             raise Exception("what type?")
 
-    def select(self,table, *fields, **condition):
-        
+    def select(self, table, *fields, tail=' ', **condition):
+        if len(fields) == 0:
+            fields = ("*", )
 
         cmd = "select {} from %s ".format(",".join(fields)) % table 
         if condition:
-            cmd += 'where ' +  ' '.join([self._sql(*i) for i in condition.items()]) + ';'
+            cmd += 'where ' +  ' '.join([self._sql(*i) for i in condition.items()])
         # print(cmd)
-        self.cu.execute(cmd)
-        for row in self.cu.fetchall():
-            yield row
+        cmd = cmd + tail + ';'
+        try:
+            self.cu.execute(cmd)
+            for row in self.cu.fetchall():
+                yield row
+        except Exception as e:
+            print(cmd)
+            raise e
+
+
+    def first(self, table, *fields, **condition):
+        if len(fields) == 0:
+            fields = ("*", )
+        for i in self.select(table, *fields, tail=' limit 1 ', **condition):
+            return i
+
+    def last(self, table, *fields, **condition):
+        if len(fields) == 0:
+            fields = ("*", )
+        for i in self.select(table, *fields, tail=' order by  ID desc limit 1 ', **condition):
+            return i
+
+    def check_table(self, table):
+        """
+        """
+        if self.Type == 'sqlite':
+            for name in self.select("sqlite_master", 'name',type='table'):
+                if name[0] == table:
+                    sql = self.first("sqlite_master", 'sql', name=table)[0]
+                    _pr = sql.find('(') + 1
+                    _tr = sql.rfind(')')
+                    return tuple((tuple(i.split()) for i in sql[_pr:_tr].split(",")))
+            return False
+        else:
+            try:
+                self.run_cmd("desc " + table)
+                return self.cu.fetchall()
+            except Exception as e:
+                if e.args[0] == 1146:
+                    return False
+                else:
+                    raise e
+
 
     def _sqls(self, i):
         if isinstance(i, int):
@@ -210,6 +238,157 @@ class SqlEngine:
         '''.format(table=table, condition=cond)
 
         return self.run_cmd(cmd)
+
+    def alter(self, table, **columns):
+        """
+        @table: table is table name
+        @**columns: this like 'create' funciton. when you add a new 'k=v' will add to table column k,
+                    but if v is 'None' the table will remove column from table.
+            example:
+
+                In [14]: sql.check_table("tt2")
+                Out[14]: 
+                 (('ID', 'INTEGER', 'PRIMARY', 'KEY', 'NOT', 'NULL'),
+                 ('CreatedTime', 'TimeStamp', 'NOT', 'NULL', 'DEFAULT', 'CURRENT_TIMESTAMP'),
+                 ('nn', 'VARCHAR(255)', 'NOT', 'NULL', 'DEFAULT', '"default', 'text"'))
+
+                In [15]: sql.alter("tt2", nn=None)
+                Out[15]: True
+
+                Out[16]: 
+                 (('ID', 'INTEGER', 'PRIMARY', 'KEY', 'NOT', 'NULL'),
+                  ('CreatedTime', 'TimeStamp', 'NOT', 'NULL', 'DEFAULT', 'CURRENT_TIMESTAMP'))
+                
+                In [17]: sql.alter("tt2", nn='abc')
+                Out[17]: True
+
+                In [18]: sql.check_table("tt2")
+                Out[18]: 
+                (('ID', 'INTEGER', 'PRIMARY', 'KEY', 'NOT', 'NULL'),
+                 ('CreatedTime', 'TimeStamp', 'NOT', 'NULL', 'DEFAULT', 'CURRENT_TIMESTAMP'),
+                 ('nn', 'VARCHAR(255)', 'NOT', 'NULL', 'DEFAULT', '"abc"'))
+
+                In [8]: sql.alter("tt2", nn=None, name='name', passwd='secret', content=str, 
+                   ...: ftime=time)
+                Out[8]: True
+
+                In [9]: sql.check_table("tt2")
+                Out[9]: 
+                (('ID', 'INTEGER', 'PRIMARY', 'KEY', 'NOT', 'NULL'),
+                 ('CreatedTime', 'TimeStamp', 'NOT', 'NULL', 'DEFAULT', 'CURRENT_TIMESTAMP'),
+                 ('passwd', 'VARCHAR(255)', 'NOT', 'NULL', 'DEFAULT', '"secret"'),
+                 ('ftime', 'TimeStamp', 'DEFAULT', 'NNULL'),
+                 ('name', 'VARCHAR(255)', 'NOT', 'NULL', 'DEFAULT', '"name"'),
+                 ('content', 'TEXT', 'DEFAULT', 'NULL'))
+
+
+
+        """
+        first_word = lambda x: x.strip().split()[0]
+        names = []
+        cmd = ''
+        table_structure = self.check_table(table)
+        sqlitedrop = False
+
+        old_columns  = [i[0] for i in table_structure]
+        drop_columns = set()
+        if not table_structure:
+            raise Exception("no such table")
+
+        for k in columns:
+            cmd = ''
+            dtype = ''
+            v = columns[k]
+            if v is int:
+                dtype = 'INTEGER DEFAULT NULL'
+            elif v is str:
+                dtype = 'TEXT DEFAULT NULL'
+            elif v is time:
+                dtype = 'TimeStamp DEFAULT NULL' if self.Type == 'sqlite' else 'TimeStamp DEFAULT CURRENT_TIMESTAMP'
+            elif isinstance(v, int):
+                dtype = 'INTEGER NOT NULL DEFAULT %d' % v
+            elif isinstance(v, str):
+                dtype = 'VARCHAR(255) NOT NULL DEFAULT "%s"' % v
+            elif hasattr(v, '_table'):
+                dtype = 'INTEGER, FOREIGN KEY (%s) REFERENCES %s(ID)' % (k, v.__name__)
+            elif v is None:
+                pass
+            else:
+                raise TypeError("not supported Sql Type %s" % str(v))
+        
+            operator = 'ADD'
+            if k in old_columns:
+                operator = 'ALTER COLUMN'
+
+            if v is None:
+                operator = 'DROP COLUMN'
+            
+            if self.Type == 'sqlite' and  v == None:
+                # just for sqlite
+                drop_columns.add(k)
+                old_columns.remove(k)
+                sqlitedrop = True
+            else:
+                cmd = '''ALTER  TABLE {table}
+            {operator} {column} {dtype}\n\t;
+                            
+            '''.format(table=table, operator=operator, column=k, dtype=dtype)
+            
+            if cmd:
+                self.run_cmds(cmd)
+            
+        
+        if sqlitedrop:
+            create_sql = self.first('sqlite_master', 'sql', name=table)[0].split(",")
+            last_change = False
+            last = first_word(create_sql[-1])
+            new_create = ''
+            delete = set()
+            for col in create_sql:
+                for m in drop_columns:
+                    if m == first_word(col):
+                        delete.add(col)
+                        if m == last:
+                            last_change = True
+                        break
+
+            for i in delete:
+                create_sql.remove(i)
+
+            cmd = '''ALTER TABLE {table} RENAME TO change_table_tmp_name_this_table_could_not_be_create_by_another_way;'''.format(table=table)
+            self.run_cmds(cmd)
+            cmd = ','.join(create_sql) if not last_change else ','.join(create_sql) + ");"
+            self.run_cmds(cmd)
+            cmd = 'INSERT INTO {table} ({values}) SELECT {values} FROM change_table_tmp_name_this_table_could_not_be_create_by_another_way;'.format(table=table, values=','.join(old_columns))
+            self.run_cmds(cmd)
+            cmd = '''DROP TABLE change_table_tmp_name_this_table_could_not_be_create_by_another_way;'''
+            self.run_cmds(cmd)
+        
+        return True
+
+    def run_cmd(self, cmd, *values):
+        try:
+            if values:
+                self.cu.execute(cmd, values)
+            else:
+                self.cu.execute(cmd)
+        except Exception as e:
+            print(e)
+            print(values)
+            print(cmd)
+            raise e
+
+        return self.con.commit()
+
+    def run_cmds(self, cmd):
+        try:
+            self.cu.execute(cmd)
+        except Exception as e:
+            print(e)
+            print(cmd)
+            raise e
+
+        return self.con.commit()
     # def gen_table(self, *columns):
         # create_cmd = 'create '
 

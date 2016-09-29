@@ -71,6 +71,14 @@ class SqlHandler(Handler):
 
 class SqlmapApi:
     """
+    first use need add 'init' kargs
+    like : 
+        sqlmapapi(type='mysql', user='root', init=True) #use mysql 
+        sqlmapapi(database='/tmp/test.sql', init=True) # use sqlite3
+        sqlmapapi(id='cdffe123fab3', database='/tmp/test.sql') # use sqlite3 and load a exist id
+        sqlmapapi(database='/tmp/test.sql') # use sqlite3 and create a task
+        sqlmapapi(database='/tmp/test.sql', load=True) # use sqlite3 and load the last task id
+
     Class Task(Table):
         task_id: "some hash id"
         url: str,
@@ -113,7 +121,7 @@ class SqlmapApi:
         'charencode'
     ]
 
-    def __init__(self, id=None, timeout=20, connection="127.0.0.1:8775", log=False, thread_num=2, **connect_options):
+    def __init__(self, id=None, timeout=20, connection="127.0.0.1:8775", load=False, log=False, thread_num=4, init=False, **connect_options):
         
         self.exe = Exe(thread_num)
         self.target = 'http://{connection}'.format(connection=connection)
@@ -126,8 +134,16 @@ class SqlmapApi:
         self.connect_options = connect_options
         self.log = log
         self.timeout = timeout
+
+        if init:
+            db = SqlEngine(**self.connect_options)
+            db.create(self.__class__.TASK_TABLE)
+
         if self.id is None:
-            self.create_task()
+            if load:
+                
+            else:    
+                self.create_task()
 
     def on_result(self, t, v):
         if t == 'new':
@@ -167,10 +183,17 @@ class SqlmapApi:
             self.task_cmd("delete")
 
         elif t == "status":
-            if self.log:
-                info(v[u'status'])
-            if v[u'status'] == 'terminated':
-                self.result()
+            try:
+                if self.log:
+                    info(v[u'status'])
+                if v[u'status'] == 'terminated':
+                    self.terminated = True
+                    self.result()
+                else:
+                    if not self.terminated:
+                        self.exe.timmer(5, self.status)
+            except KeyError:
+                pass
 
         elif t == 'start':
             if self.log:
@@ -193,8 +216,8 @@ class SqlmapApi:
                 info(v)
         elif t == 'log':
             for msg in v['log']:
-                if self.log:
-                    info(msg)
+                # if self.log:
+                info(msg)
 
     def handle(self, tag, cmd, **kargs):
         return tag, to(urljoin(self.target, cmd), **kargs).json()
@@ -266,13 +289,13 @@ class SqlmapApi:
             method='post',
             headers={'Content-Type': 'application/json'})
 
-        self.exe.timmer(5, self.result)
-        self.exe.timmer(10, self.result)
-        self.exe.timmer(15, self.result)
+        self.exe.timmer(5, self.status)
+        
         self.exe.timmer(self.timeout, self.result)
 
     def status(self):
         self.scan_cmd('status')
+
 
     def log(self):
         self.scan_cmd('log')
