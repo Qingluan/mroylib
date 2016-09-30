@@ -121,7 +121,7 @@ class SqlmapApi:
         'charencode'
     ]
 
-    def __init__(self, id=None, timeout=20, connection="127.0.0.1:8775", load=False, log=False, thread_num=4, init=False, **connect_options):
+    def __init__(self, id=None, timeout=20, connection="127.0.0.1:8775", load=False, verbose=False, thread_num=4, init=False, **connect_options):
         
         self.exe = Exe(thread_num)
         self.target = 'http://{connection}'.format(connection=connection)
@@ -132,17 +132,18 @@ class SqlmapApi:
         self.start_time = None
         self.terminated = False
         self.connect_options = connect_options
-        self.log = log
+        self.verbose = verbose
         self.timeout = timeout
 
         if init:
             db = SqlEngine(**self.connect_options)
-            db.create(self.__class__.TASK_TABLE)
+            db.create('Task', **self.__class__.TASK_TABLE)
 
         if self.id is None:
             if load:
-                
-            else:    
+                db = SqlEngine(**self.connect_options)
+                self.id = db.last('Task', 'task_id')
+            else:
                 self.create_task()
 
     def on_result(self, t, v):
@@ -154,7 +155,7 @@ class SqlmapApi:
             db.close()
 
         elif t == 'data':
-            if self.log:
+            if self.verbose:
                 info(v)
             db = SqlEngine(**self.connect_options)
             if v['data']:
@@ -168,7 +169,7 @@ class SqlmapApi:
                     }
                     db.update("Task", upadte_set, task_id=self.id)
                 else:
-                    if self.log:
+                    if self.verbose:
                         ok(v['data'])
                     self.injectable = True
             else:
@@ -184,7 +185,7 @@ class SqlmapApi:
 
         elif t == "status":
             try:
-                if self.log:
+                if self.verbose:
                     info(v[u'status'])
                 if v[u'status'] == 'terminated':
                     self.terminated = True
@@ -196,23 +197,23 @@ class SqlmapApi:
                 pass
 
         elif t == 'start':
-            if self.log:
+            if self.verbose:
                 info(v['success'])
         elif t == 'set':
-            if self.log:
+            if self.verbose:
                 ok('\ninit options')
         elif t == 'kill':
-            if self.log:
+            if self.verbose:
                 fail(v)
         elif t == 'stop':
-            if self.log:
+            if self.verbose:
                 wrn(v)
         elif t == 'list':
             for k in v['options']:
-                if self.log:
+                if self.verbose:
                     ok(k, v['options'][k])
         elif t == 'task':
-            if self.log:
+            if self.verbose:
                 info(v)
         elif t == 'log':
             for msg in v['log']:
