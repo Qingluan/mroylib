@@ -265,8 +265,8 @@ class SqlmapApi:
                     'delay': 1
                 }
         '''
-        if 'tamper' in options:
-            options['tamper'] = SqlmapApi.TAMPER
+        # if 'tamper' in options:
+        #     options['tamper'] = SqlmapApi.TAMPER
 
         self.test_url = url
         if options:
