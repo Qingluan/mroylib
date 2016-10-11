@@ -5,6 +5,8 @@ matplotlib.style.use('ggplot')
 import numpy as np
 from matplotlib.lines import Line2D
 
+from qlib.log import LogControl
+LogControl.LOG_LEVEL = LogControl.INFO
 
 
 class Drawer:
@@ -67,18 +69,25 @@ class Line:
 
     def update(self, ys):
         for i, y in enumerate(ys):
-            line = self.ax.get_lines()[i]
-            tdata = line.get_xdata()
-            ydata = line.get_ydata()
-            
-            
-            t = tdata[-1] + self.dt # new x data
-            tdata.append(t)
-            ydata.append(y)
+            try:
+                line = self.ax.get_lines()[i]
+                tdata = line.get_xdata()
+                ydata = line.get_ydata()
+                
+                
+                t = tdata[-1] + self.dt # new x data
+                tdata.append(t)
+                ydata.append(y)
 
-            self.resize_panel(t, y) # resize the fig 
+                self.resize_panel(t, y) # resize the fig 
 
-            line.set_data(tdata, ydata)
+                line.set_data(tdata, ydata)
+            except IndexError:
+                line = Line2D([0], [0])
+                self.ax.add_line(line)
+            except Exception as e:
+                LogControl.err(e)
+
         return self.ax.get_lines()
 
     def resize_panel(self, t, y):

@@ -75,7 +75,7 @@ class libsniff:
     黑魔法的应用例子  , 三个函数 @structure, @include , @c
     
     structure :int ， 这个参数是指明 u_char * 长度上限的。。。不加容易崩溃，当常量吧
-    创建一个c 中的同名类，继承 C， 然后直接把 结构体粘贴过来
+    创建一个c 中的同名类，继承 C， 然后直接把 结构体粘贴过来 ps: 必须是 gnu 标准的
     放到 _raw 变量里 。好了，c结构体转 py完成
 
     如下：
