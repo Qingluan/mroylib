@@ -85,26 +85,42 @@ class BaiduTranslate(Searcher):
             res = to(self.host, method='post', data=data)
             return res.status_code, res.json()
 
-        def tree_display(d, func, lfunc=None):
+        def tree_dict(d, func, key=None, lfunc=None):
             if isinstance(d, dict):
                 for item in d:
-                    tree_display(d[item], func)
+                    tree_dict(d[item], func, key=item)
             elif isinstance(d, list):
                 for item in d:
                     if lfunc:
-                        tree_display(item, lfunc)
+                        tree_dict(item, lfunc)
                     else:
-                        tree_display(item, func)
+                        tree_dict(item, func)
             else:
-                func(d)
+                if key:
+                    func(d, key)
+                else:
+                    func(d)
 
+        def single_display(val, key=None, level=1):
+            if key:
+                LogControl.ok('[' + key + ']', '\t', val)
+            else:
+                LogControl.info('\t\t' + '   ' * level, val)
 
         def display(code, content):
             '''
             display content
             '''
             if int(code / 200) == 1:
-                LogControl.ok(res)
+                try:
+                    tree_dict(content['trans_result'], single_display, 'base')
+                    if detail:
+                        tree_dict(content['dict_result'], single_display, 'dict')
+                    if example:
+                        tree_dict(content['liju_result'], single_display, 'sample')
+                except KeyError:
+                    LogControl.fail("Only: ", *content.keys())
+
             else:
                 LogControl.fail("not found this")
 
