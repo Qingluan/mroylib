@@ -1,8 +1,12 @@
 import requests
 from functools import wraps
 from .config import RAW_HEADERS
-
+from urllib.parse import urlencode
 # _methods = {}
+
+
+def parameters(**pars):
+    return urlencode(pars)
 
 
 def set_setssion():
@@ -23,7 +27,13 @@ def session(url):
     return _wrap
 
 
-def to(url, data=None, method='get', **option):
+def to(url, data=None, ssl=False, method='get', **option):
+    if not url.startswith("http"):
+        if ssl:
+            url = 'https://' + url
+        else:
+            url = 'http://' + url
+
     headers = RAW_HEADERS
     if 'headers' in option:
         for k in option['headers']:
