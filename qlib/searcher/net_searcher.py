@@ -97,7 +97,10 @@ class BaiduTranslate(Searcher):
                         tree_dict(item, func)
             else:
                 if key:
-                    func(d, key)
+                    if key == 'dst':
+                        LogControl.ok(d, txt_color='green', txt_attr=['underline','bold'])
+                    else:
+                        func(d, key)
                 else:
                     func(d)
 
@@ -120,6 +123,8 @@ class BaiduTranslate(Searcher):
                         tree_dict(content['liju_result'], single_display, 'sample')
                 except KeyError:
                     LogControl.fail("Only: ", *content.keys())
+                    for k in content:
+                        LogControl.err(k, content[k])
 
             else:
                 LogControl.fail("not found this")
