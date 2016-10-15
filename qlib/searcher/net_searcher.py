@@ -211,7 +211,7 @@ class DuckDuckGo(Searcher):
         """
 
         def get_vqd(query):
-            vqd_url = 'http://duckduckgo.com/?q={query}&t=h_&ia={type}'.format(query=query, type=type)
+            vqd_url = 'https://duckduckgo.com/?q={query}&t=h_&ia={type}'.format(query=query, type=type)
             LogControl.info(vqd_url) if self.debug else ''
             sss = to(vqd_url).content.decode('utf8')
             return sss[sss.rfind("vqd"):].split("&").pop(0).split("=").pop()
