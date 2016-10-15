@@ -4,8 +4,8 @@ from setuptools import setup, find_packages
 
 
 setup(name='Mroylib',
-    version='1.1.7',
-    description='add proxy and some language parse tool',
+    version='1.2.0',
+    description='a steady version',
     url='https://git.oschina.net/dark.h/Mroylib.git',
     author='Qing luan',
     author_email='darkhackdevil@gmail.com',
