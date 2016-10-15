@@ -63,6 +63,9 @@ class NodeClient(ViewerBase):
 
 
 class GeoClient(ViewerBase):
+    """
+    mark: coor@msg
+    """
     
     def __init__(self, url):
         super(GeoClient, self).__init__(url, 'geo')

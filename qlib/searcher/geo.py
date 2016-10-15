@@ -29,12 +29,16 @@ geo_api = _GEO_IP[random.randint(0, len(_GEO_IP)-1)]
 
 
 
-def search_ip(*ips, callback=None):
+def search_ip(*ips, callback=None, asyn=False):
     e = [urljoin(geo_api,ip) for ip in ips]
     
     def get_json(url):
-        return to(url).json()
-    
+        return url, to(url).json()
+    if asyn:
+        for url in e:
+            _exe.done(get_json, callback, url)
+        return True
+
     res = _exe.map(get_json, e)
     if callback:
         callback(res)    

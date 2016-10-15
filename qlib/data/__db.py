@@ -98,18 +98,3 @@ class GotRedis(Singleton):
 
     def keys(self):
         return self.redis.keys()
-
-def upload():
-    local("cd ~/RMDB && git branch")
-    args = input("db_name > ").split()
-    db_name_pre, db_name = args if len(args) ==2 else ['',args[0]]
-    local("cd ~/RMDB && git checkout %s %s && ./package.sh c && git add -A && git commit -m \"upload %s  \" && git push origin %s -f " % (db_name_pre ,db_name ,time.asctime(), db_name))
-
-
-def load():
-    local("cd ~/RMDB && git branch")
-    args = input("db_name > ").split()
-    db_name_pre, db_name = args if len(args) ==2 else ['',args[0]]
-    local("cd ~/RMDB && git checkout %s %s && git pull origin %s &&  ./package.sh d  " % (db_name_pre, db_name,db_name))    
-
-
