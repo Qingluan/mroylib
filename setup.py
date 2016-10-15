@@ -4,8 +4,8 @@ from setuptools import setup, find_packages
 
 
 setup(name='Mroylib',
-    version='1.1.2',
-    description='some lib',
+    version='1.1.4',
+    description='add duckduck go  module based on',
     url='https://git.oschina.net/dark.h/Mroylib.git',
     author='Qing luan',
     author_email='darkhackdevil@gmail.com',

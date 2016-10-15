@@ -1,5 +1,5 @@
 # -*- coding: utf8 -*- 
-from qlib.net import to
+from qlib.net import to, parameters
 from qlib.net.agents import AGS
 from qlib.graphy import random_choice
 from qlib.asyn import Exe
@@ -13,6 +13,10 @@ LogControl.LOG_LEVEL |= LogControl.FAIL
 LogControl.LOG_LEVEL |= LogControl.INFO
 
 class Searcher:
+    config = {
+        'search_url': '',
+        'search_args': {},
+    }
 
     def __init__(self, ssl=True, asyn=False, debug=False):
         self.url_pre = 'https://www.' if ssl else  'https//www.'
@@ -29,6 +33,12 @@ class Searcher:
         LogControl.info("//" + "//".join(tags) + exclude) if self.debug else ''
         for item in xhtml.xpath("//" + "//".join(tags) + exclude):
             yield item
+
+    def ready(self, pre_url, *args, **options):
+        pass
+
+    def set_args(self, **kargs):
+        return parameters(**kargs)
 
 class Google(Searcher):
     pass
@@ -137,3 +147,28 @@ class BaiduTranslate(Searcher):
             'simple_means_flag':'3',
         }
         self.asyn.done(query, display, data)
+
+
+class DuckDuckGo(Searcher):
+
+    def __init__(self, *args, **kargs):
+        super().__init__(*args, **kargs)
+        self.search_url = 'https://duckduckgo.com/d.js?q={query}&{options}&vqd={vqd}'
+        self.search_args = 'l=wt-wt&p=1&s=0&a=h_&ct=US&ss_mkt=us'
+
+
+
+    def search(self, query):
+        url_query = quote('+'.join(query.split()))
+
+        def get_vqd(query):
+            sss = to('http://duckduckgo.com/?q={query}&t=h_&ia=web'.format(query=query)).content.decode('utf8')
+            return sss[sss.rfind("vqd"):].split("&").pop(0).split("=").pop()
+
+        args = self.search_args
+        vqd = get_vqd(url_query)
+        url = self.search_url.format(query=url_query, options=self.search_args, vqd=vqd) + '&sp=1&yhs=1'
+        LogControl.info(url) if self.debug  else ''
+        return to(url, headers={'cookie':'ak=-1'})
+
+
