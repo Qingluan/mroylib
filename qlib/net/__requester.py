@@ -27,7 +27,7 @@ def session(url):
     return _wrap
 
 
-def to(url, data=None, ssl=False, method='get', **option):
+def to(url, data=None, ssl=False, method='get', proxy=None, **option):
     if not url.startswith("http"):
         if ssl:
             url = 'https://' + url
@@ -43,8 +43,10 @@ def to(url, data=None, ssl=False, method='get', **option):
         m = option['session']
     else:
         m = getattr(requests, method)
-        return m(url, data=data, headers=headers)
-
+        if proxy:
+            return m(url, data=data, headers=headers, proxies=proxy)
+        else:
+            return m(url, data=data, headers=headers)
 
 def network(url, data=None, method="get", **options):
     if "session" in options:

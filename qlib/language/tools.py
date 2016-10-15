@@ -21,6 +21,8 @@ def extract(string, pre='(', back=')'):
         else:
             yield string[:last_b]
             string = string[:last_b]
+        if string is None:
+            break
 
 
 def get_from_func(string, name):
@@ -28,14 +30,20 @@ def get_from_func(string, name):
     while string.find(name) != -1:
         string = string[string.find(name) + len(name):]
         yield next(extract(string))
+        if not string:
+            break
 
 
 def get_from_tag(string, tag):
     pre='<%s>' % tag
     back = '</%s>' % tag
+    if string is None:
+        return ''
     while string.find(tag) != -1:
         yield next(extract(string, pre=pre, back=back))
         string = string[string.find(pre) + len(pre):]
+        if string is None:
+            break
 
 
 def replace_tag_to(string, func=False, **tags):

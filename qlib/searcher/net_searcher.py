@@ -21,7 +21,7 @@ class Searcher:
         'search_args': {},
     }
 
-    def __init__(self, ssl=True, asyn=False, debug=False, db=False, database=None):
+    def __init__(self, ssl=True, asyn=False, debug=False, db=False, database=None, proxy=False):
         self.url_pre = 'https://www.' if ssl else  'https//www.'
         self.search_name = self.__class__.__name__.lower()
         self.host = self.url_pre + self.search_name + '.com'
@@ -29,9 +29,17 @@ class Searcher:
         self.asyn = None
         self.db = None
         self.debug =debug
+        self.proxy = None
 
         if asyn:
             self.asyn = Exe(10)
+
+        if proxy:
+            LogControl.info("loading proxy..", end='')
+            self.proxy = proxy #Mongo('local').find("setting")[0].get("proxy")
+            if self.proxy:
+                LogControl.ok("")
+
 
         if db:
             self.use_db = db
@@ -40,6 +48,12 @@ class Searcher:
             self.db = SqlEngine(database=db_path)
             if not self.db.table_list():
                 self.db.create(self.search_name, query=str, content=str, type='web')
+
+    def proxy_to(self, url, **kargs):
+        if self.proxy:
+            return to(url, proxy=self.proxy, **kargs)
+        else:
+            return to(url, **kargs)
 
     def xpath(self, html, *tags,exclude=None):
         xhtml = HTML(html)
@@ -213,7 +227,7 @@ class DuckDuckGo(Searcher):
         def get_vqd(query):
             vqd_url = 'https://duckduckgo.com/?q={query}&t=h_&ia={type}'.format(query=query, type=type)
             LogControl.info(vqd_url) if self.debug else ''
-            sss = to(vqd_url).content.decode('utf8')
+            sss = self.proxy_to(vqd_url).content.decode('utf8')
             return sss[sss.rfind("vqd"):].split("&").pop(0).split("=").pop()
 
 
@@ -228,7 +242,7 @@ class DuckDuckGo(Searcher):
             
 
         LogControl.info(url) if self.debug  else ''
-        response = to(url, headers={'cookie':'ak=-1'})
+        response = self.proxy_to(url, headers={'cookie':'ak=-1'})
         if response.status_code / 100 == 2:
             
             self.last_search_type = type # record successful request's type
@@ -259,7 +273,7 @@ class DuckDuckGo(Searcher):
         if not self.next_url:
             LogControl.fail("no next url found !")
             return ''
-        return to(self.host + self.next_url).json()
+        return self.proxy_to(self.host + self.next_url).json()
 
     def more(self):
         """
