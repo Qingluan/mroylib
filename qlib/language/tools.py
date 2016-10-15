@@ -2,6 +2,9 @@ import re
 
 
 def extract(string, spic='()'):
+    """
+    Can extract content between from spic[0] and spic[1], default spic is '()' , which from string.
+    """
     pre = spic[0]
     back = spic[1]
     l_count = 0
@@ -20,4 +23,9 @@ def extract(string, spic='()'):
             yield string[:last_b]
             string = string[:last_b]
 
-    
+
+def get_from_func(string, name):
+
+    while string.find(name) != -1:
+        string = string[string.find(name) + len(name):]
+        yield next(extract(string))

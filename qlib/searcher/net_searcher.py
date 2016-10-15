@@ -1,9 +1,12 @@
 # -*- coding: utf8 -*- 
+import os, json
+
 from qlib.net import to, parameters
 from qlib.net.agents import AGS
 from qlib.graphy import random_choice
 from qlib.asyn import Exe
 from qlib.log import LogControl
+from qlib.data.sql import SqlEngine
 
 from lxml.etree import HTML
 from urllib.parse import quote
@@ -18,14 +21,25 @@ class Searcher:
         'search_args': {},
     }
 
-    def __init__(self, ssl=True, asyn=False, debug=False):
+    def __init__(self, ssl=True, asyn=False, debug=False, db=False, database=None):
         self.url_pre = 'https://www.' if ssl else  'https//www.'
-        self.host = self.url_pre + self.__class__.__name__.lower() + '.com'
+        self.search_name = self.__class__.__name__.lower()
+        self.host = self.url_pre + self.search_name + '.com'
         self.agent = random_choice(AGS)
         self.asyn = None
+        self.db = None
         self.debug =debug
+
         if asyn:
             self.asyn = Exe(10)
+
+        if db:
+            self.use_db = db
+            db_path = os.path.join(os.getenv("HOME"), '.Search-engine-sqlite3-db.db') if not database else database
+            self.db_path = db_path
+            self.db = SqlEngine(database=db_path)
+            if not self.db.table_list():
+                self.db.create(self.search_name, query=str, content=str, type='web')
 
     def xpath(self, html, *tags,exclude=None):
         xhtml = HTML(html)
@@ -151,24 +165,113 @@ class BaiduTranslate(Searcher):
 
 class DuckDuckGo(Searcher):
 
+    """
+    @db=False/True : will use sqlite3 database .
+    @database= 'path' # specify a path to save sqlite database file. default is ~/.Search-engine-sqlite3-db.db
+
+    supported web , news, video, images
+    """
+
     def __init__(self, *args, **kargs):
         super().__init__(*args, **kargs)
-        self.search_url = 'https://duckduckgo.com/d.js?q={query}&{options}&vqd={vqd}'
-        self.search_args = 'l=wt-wt&p=1&s=0&a=h_&ct=US&ss_mkt=us'
+        self.search_url = 'https://duckduckgo.com/{use_js}?q={query}&{options}&vqd={vqd}'
+        self.search_pools = {
+            'web': 'd.js',
+            'news': 'news.js',
+            'video': 'v.js',
+            'images': 'i.js',
+        }
+
+        self.search_args = 'l=wt-wt&p=1&s=0&a=h_&ct=US&ss_mkt=us&o=json' # output: json
+        self.result = None
+        self.last_search_type = 'web'
+        self.next_url = None
 
 
+    # def search_old(self, query, type='web'):
+    #     """
+    #     Abandoned function 
+    #     """
+    #     url_query = quote('+'.join(query.split()))
 
-    def search(self, query):
-        url_query = quote('+'.join(query.split()))
+    #     def get_vqd(query):
+    #         sss = to('http://duckduckgo.com/?q={query}&t=h_&ia={type}'.format(query=query, type=type)).content.decode('utf8')
+    #         return sss[sss.rfind("vqd"):].split("&").pop(0).split("=").pop()
+
+    #     args = self.search_args
+    #     vqd = get_vqd(url_query)
+    #     url = self.search_url.format(query=url_query, options=self.search_args, vqd=vqd) + '&sp=1&yhs=1'
+    #     LogControl.info(url) if self.debug  else ''
+    #     response = to(url, headers={'cookie':'ak=-1'})
+    #     return response.status_code, response 
+
+    def search(self, query, type='web', url=None):
+        """
+        supported web , news, video, images
+        """
 
         def get_vqd(query):
-            sss = to('http://duckduckgo.com/?q={query}&t=h_&ia=web'.format(query=query)).content.decode('utf8')
+            vqd_url = 'http://duckduckgo.com/?q={query}&t=h_&ia={type}'.format(query=query, type=type)
+            LogControl.info(vqd_url) if self.debug else ''
+            sss = to(vqd_url).content.decode('utf8')
             return sss[sss.rfind("vqd"):].split("&").pop(0).split("=").pop()
 
-        args = self.search_args
-        vqd = get_vqd(url_query)
-        url = self.search_url.format(query=url_query, options=self.search_args, vqd=vqd) + '&sp=1&yhs=1'
+
+        if url is None:
+            url_query = '+'.join(query.split())
+
+
+            args = self.search_args
+            vqd = get_vqd(url_query)
+            url = self.search_url.format(use_js=self.search_pools[type], query=quote(query), options=args, vqd=vqd) + '&sp=1&yhs=1'
+
+            
+
         LogControl.info(url) if self.debug  else ''
-        return to(url, headers={'cookie':'ak=-1'})
+        response = to(url, headers={'cookie':'ak=-1'})
+        if response.status_code / 100 == 2:
+            
+            self.last_search_type = type # record successful request's type
+            json_content = ''
+            try:
+                json_content = response.json()
+            except Exception:
+                LogControl.err(response.content)
+                sys.exit(0)
 
+            self.result = json_content.get('results')
+            self.deepanswer = json_content.get('deep_answers')
+            self.next_url = self.result[-1].get('n')
+            
+            if self.use_db:
+                self.db.insert(self.search_name, ['query', 'content', 'type'], query, json.dumps(json_content), type)
 
+            return json_content.get('results')
+        else:
+            LogControl.err(response.status_code, 'err')
+            return ''
+
+    def next(self):
+        """
+        see next page 's result simplely.
+        """
+
+        if not self.next_url:
+            LogControl.fail("no next url found !")
+            return ''
+        return to(self.host + self.next_url).json()
+
+    def more(self):
+        """
+        like next
+        """
+        return self.next()
+
+    def search_images(self, query):
+        return self.search(query, type='iamges')
+
+    def search_video(self, query):
+        return self.search(query, type='video')
+
+    def search_news(self, query):
+        return self.search(query, type='news')
