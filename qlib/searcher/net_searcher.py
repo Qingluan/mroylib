@@ -87,7 +87,9 @@ class Searcher:
                 return num, []
             res = self.proxy_to(url)
             if res.status_code / 100 ==2:
-                encoding = res.encoding if res.encoding else 'utf8'
+
+                encoding = 'utf8'#res.encoding if res.encoding else 'utf8'
+                LogControl.err(url, res.encoding)
                 if res.content:
                     try:
                         h_content = res.content.decode(encoding)
