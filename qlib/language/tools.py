@@ -35,15 +35,23 @@ def get_from_func(string, name):
 
 
 def get_from_tag(string, tag):
-    pre='<%s>' % tag
-    back = '</%s>' % tag
+    if isinstance(string, bytes):
+        string = string.decode("utf8")
+    g_r = re.compile(r'(?:\<{tag}.*?\>)(.+?)(?:</{tag}>)'.format(tag=tag))
     if string is None:
-        return ''
-    while string.find(tag) != -1:
-        yield next(extract(string, pre=pre, back=back))
-        string = string[string.find(pre) + len(pre):]
-        if string is None:
-            break
+        return
+
+    for item in re.findall(g_r, string):
+        yield item
+    # pre='<%s>' % tag
+    # back = '</%s>' % tag
+    # if string is None:
+    #     return ''
+    # while string.find(tag) != -1:
+    #     yield next(extract(string, pre=pre, back=back))
+    #     string = string[string.find(pre) + len(pre):]
+    #     if string is None:
+    #         break
 
 
 def replace_tag_to(string, func=False, **tags):
@@ -54,15 +62,20 @@ def replace_tag_to(string, func=False, **tags):
         while set True , will use tags's value should pass callback function, not value
 
     """
+    
+
     def _tag(tag):
         return '<%s>' % tag, '<%s/>' % tag
 
     for tag in tags:
         val = tags[tag]
+        replace_r = r'\<{tag}.*?\>.+?\<\/{tag}\>'.format(tag=tag)
         for raw in get_from_tag(string, tag):
             if not func:
-                string = string.replace('<{tag}>{raw}</{tag}>'.format(tag=tag, raw=raw), val)
+                # string = string.replace('<{tag}>{raw}</{tag}>'.format(tag=tag, raw=raw), val)
+                string = re.sub(replace_r, val, string)
             else:
-                string = string.replace('<{tag}>{raw}</{tag}>'.format(tag=tag, raw=raw), val(raw))
+                string = re.sub(replace_r, val(raw), string)
+                # string = string.replace('<{tag}>{raw}</{tag}>'.format(tag=tag, raw=raw), val(raw))
 
     return string

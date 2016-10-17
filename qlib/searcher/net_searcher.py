@@ -1,5 +1,5 @@
 # -*- coding: utf8 -*- 
-import os, json
+import os, json, sys
 
 from qlib.net import to, parameters
 from qlib.net.agents import AGS
@@ -21,7 +21,7 @@ class Searcher:
         'search_args': {},
     }
 
-    def __init__(self, ssl=True, asyn=False, debug=False, db=False, database=None, proxy=False):
+    def __init__(self, ssl=True, asyn=True, debug=False, db=False, database=None, proxy=False):
         self.url_pre = 'https://www.' if ssl else  'https//www.'
         self.search_name = self.__class__.__name__.lower()
         self.host = self.url_pre + self.search_name + '.com'
@@ -30,9 +30,10 @@ class Searcher:
         self.db = None
         self.debug =debug
         self.proxy = None
+        self.grep_html_content = dict()
 
         if asyn:
-            self.asyn = Exe(10)
+            self.asyn = Exe(20)
 
         if proxy:
             LogControl.info("loading proxy..", end='')
@@ -67,6 +68,38 @@ class Searcher:
 
     def set_args(self, **kargs):
         return parameters(**kargs)
+
+    def grep(self, url, grep_str, num):
+        """
+        async to grep url's content by grep_str, then will return (num, [*url]) -> callback
+
+        """
+
+        def _request():
+            if  grep_str.lower().find(url.split(".").pop().lower()) != -1:
+                return num, []
+            res = self.proxy_to(url)
+            if res.status_code / 100 ==2:
+                encoding = res.encoding if res.encoding else 'utf8'
+                if res.content:
+                    try:
+                        h_content = res.content.decode(encoding)
+                        return num, [ i.attrib.get('href') for i in HTML(h_content).xpath('//a') if i.attrib.get('href', '').find(grep_str) != -1]
+                    except UnicodeError as e:
+                        LogControl.err(e,'\n', res.encoding, encoding, url)
+                        return num, []
+                    except KeyError as e:
+                        LogControl.err(e, url)
+                        return num, []
+
+                    
+            else:
+                return num, []
+        if self.asyn:
+            self.asyn.done(_request, self.save_grep)
+
+    def save_grep(self, num, res):
+        self.grep_html_content[num] = res
 
 class Google(Searcher):
     pass
