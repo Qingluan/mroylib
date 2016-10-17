@@ -16,6 +16,13 @@ LogControl.LOG_LEVEL |= LogControl.FAIL
 LogControl.LOG_LEVEL |= LogControl.INFO
 
 class Searcher:
+    """
+    @proxy is setting request's proxy 
+        sample: {
+            'http': 'socks5://127.0.0.1:1080',
+            'https': 'socks5://127.0.0.1:1080'
+        }
+    """
     config = {
         'search_url': '',
         'search_args': {},

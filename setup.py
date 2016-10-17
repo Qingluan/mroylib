@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 
 setup(name='Mroylib',
-    version='1.2.1',
+    version='1.2.2',
     description='a steady version',
     url='https://git.oschina.net/dark.h/Mroylib.git',
     author='Qing luan',
